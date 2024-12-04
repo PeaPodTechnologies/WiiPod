@@ -16,6 +16,15 @@ void Nunchuck::loadID(void) {
 
   Nunchuck::_id[idlen] = '\0';
   Nunchuck::_id_set = true;
+
+  #ifdef WIIPOD_DEBUG_SERIAL
+    DEBUG_DELAY();
+    WIIPOD_DEBUG_SERIAL.print(F("Nunchuck ID Loaded: '"));
+    WIIPOD_DEBUG_SERIAL.print(Nunchuck::_id);
+    WIIPOD_DEBUG_SERIAL.print(F("' @"));
+    WIIPOD_DEBUG_SERIAL.println((uint16_t)Nunchuck::_id, HEX);
+    DEBUG_DELAY();
+  #endif
 }
 
 // Handles ID pointer assignment too

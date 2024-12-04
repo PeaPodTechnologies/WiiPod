@@ -156,23 +156,24 @@ i2cip_errorlevel_t WiiPod::update() {
   //   return I2CIP::I2CIP_ERR_SOFT; // ENOENT
   // }
 
-  const I2CIP::EEPROM& eeprom = *(this->eeprom);
+  // const I2CIP::EEPROM& eeprom = *(this->eeprom);
+  i2cip_fqa_t eeprom_fqa = this->eeprom->getFQA();
 
   #ifdef WIIPOD_DEBUG_SERIAL
     WIIPOD_DEBUG_SERIAL.print(F("EEPROM "));
-    WIIPOD_DEBUG_SERIAL.print(I2CIP_FQA_SEG_I2CBUS(eeprom.getFQA()), HEX);
+    WIIPOD_DEBUG_SERIAL.print(I2CIP_FQA_SEG_I2CBUS(eeprom_fqa), HEX);
     WIIPOD_DEBUG_SERIAL.print(":");
-    WIIPOD_DEBUG_SERIAL.print(I2CIP_FQA_SEG_MODULE(eeprom.getFQA()), HEX);
+    WIIPOD_DEBUG_SERIAL.print(I2CIP_FQA_SEG_MODULE(eeprom_fqa), HEX);
     WIIPOD_DEBUG_SERIAL.print(":");
-    WIIPOD_DEBUG_SERIAL.print(I2CIP_FQA_SEG_MUXBUS(eeprom.getFQA()), HEX);
+    WIIPOD_DEBUG_SERIAL.print(I2CIP_FQA_SEG_MUXBUS(eeprom_fqa), HEX);
     WIIPOD_DEBUG_SERIAL.print(":");
-    WIIPOD_DEBUG_SERIAL.print(I2CIP_FQA_SEG_DEVADR(eeprom.getFQA()), HEX);
+    WIIPOD_DEBUG_SERIAL.print(I2CIP_FQA_SEG_DEVADR(eeprom_fqa), HEX);
     WIIPOD_DEBUG_SERIAL.print(" ");
   #endif
 
   unsigned long now = millis();
   // i2cip_errorlevel_t errlev = modules[modulenum]->operator()(eeprom.getFQA(), true, true); // Test failsafe get
-  i2cip_errorlevel_t errlev = this->operator()(eeprom.getFQA(), true, true); // Test failsafe get
+  i2cip_errorlevel_t errlev = this->operator()(eeprom_fqa, true, true); // Test failsafe get
   unsigned long delta = millis() - now;
 
   #ifdef WIIPOD_DEBUG_SERIAL
@@ -196,7 +197,7 @@ i2cip_errorlevel_t WiiPod::update() {
   }
 
   // Bonus Points - Print EEPROM contents
-  const char* cache = eeprom.getCache();
+  const char* cache = this->eeprom->getCache();
   if(cache == nullptr || cache[0] == '\0') {
     WIIPOD_DEBUG_SERIAL.println(F(" EMPTY"));
     return errlev;
@@ -215,6 +216,7 @@ i2cip_errorlevel_t WiiPod::update() {
 }
 
 i2cip_errorlevel_t WiiPod::updateNunchuck(uint8_t bus, bool update) {
+  Nunchuck::loadID();
   i2cip_errorlevel_t errlev;
   i2cip_fqa_t nunchuck_fqa = I2CIP::createFQA(getWireNum(), getModuleNum(), bus, NUNCHUCK_ADDRESS);
   if(nunchuck == nullptr) {
@@ -229,18 +231,18 @@ i2cip_errorlevel_t WiiPod::updateNunchuck(uint8_t bus, bool update) {
     // if(!modules[MODULE]->add(*Nunchuck::nunchuckFactory(nunchuck_fqa), true)) { Serial.println(F("ADD")); crashout(); }
     // nunchuck = (Nunchuck*)modules[MODULE]->operator[](nunchuck_fqa);
     // DeviceGroup* nunchuck_dg = modules[MODULE]->operator[]("NUNCHUCK");
-    DeviceGroup* nunchuck_dg = this->operator[]("NUNCHUCK");
+    DeviceGroup* nunchuck_dg = this->operator[](Nunchuck::getStaticIDBuffer());
     // DeviceGroup* nunchuck_dg = wiipod["NUNCHUCK"];
     if(nunchuck_dg == nullptr) {
       // delete nunchuck_dg; nunchuck_dg = nullptr; Serial.println("DG"); crashout(); }
       Serial.println("DG"); return I2CIP::I2CIP_ERR_SOFT; }
 
-    nunchuck = (Nunchuck*)(nunchuck_dg->operator()(nunchuck_fqa));
+    nunchuck = new Nunchuck(nunchuck_fqa);
     if(nunchuck == nullptr || nunchuck->getFQA() != nunchuck_fqa) {
       // Serial.println(F("FQA")); crashout(); }
       Serial.println(F("FQA")); return I2CIP::I2CIP_ERR_SOFT; }
     // if(!modules[MODULE]->add(*nunchuck, true)) { Serial.println(F("ADD")); crashout(); }
-    if(!this->add(*nunchuck, true)) {
+    if(!this->add(nunchuck, true)) {
       // Serial.println(F("ADD")); crashout(); }
       Serial.println(F("ADD")); return I2CIP::I2CIP_ERR_SOFT; }
     // if(!wiipod.add(*nunchuck, true)) { Serial.println(F("ADD")); crashout(); }
@@ -294,6 +296,7 @@ i2cip_errorlevel_t WiiPod::updateNunchuck(uint8_t bus, bool update) {
 }
 
 i2cip_errorlevel_t WiiPod::updateSHT31(uint8_t bus, bool update) {
+  SHT31::loadID();
   i2cip_errorlevel_t errlev;
   i2cip_fqa_t sht31_fqa = I2CIP::createFQA(getWireNum(), getModuleNum(), bus, SHT31_ADDR);
   if(sht31 == nullptr) {
@@ -303,7 +306,7 @@ i2cip_errorlevel_t WiiPod::updateSHT31(uint8_t bus, bool update) {
     // if(modules[MODULE]->operator[]("SHT31") == nullptr) { Serial.println(F("DG")); crashout(); }
 
     // DeviceGroup* sht31_dg = modules[MODULE]->operator[]("SHT31");
-    DeviceGroup* sht31_dg = this->operator[]("SHT31");
+    DeviceGroup* sht31_dg = this->operator[](SHT31::getStaticIDBuffer());
     // DeviceGroup* sht31_dg = wiipod["SHT31"];
     if(sht31_dg == nullptr) {
       // delete sht31_dg; sht31_dg = nullptr; Serial.println("DG"); crashout(); }
@@ -313,7 +316,7 @@ i2cip_errorlevel_t WiiPod::updateSHT31(uint8_t bus, bool update) {
       // Serial.println(F("FQA")); crashout(); }
       Serial.println(F("FQA")); return I2CIP::I2CIP_ERR_SOFT; }
     // if(!modules[MODULE]->add(*sht31, true)) { Serial.println(F("ADD")); crashout(); }
-    if(!this->add(*sht31, true)) {
+    if(!this->add(sht31, true)) {
       // Serial.println(F("ADD")); crashout(); }
       Serial.println(F("ADD")); return I2CIP::I2CIP_ERR_SOFT; }
     // if(!wiipod.add(*sht31, true)) { Serial.println(F("ADD")); crashout(); }

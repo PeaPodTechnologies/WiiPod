@@ -55,6 +55,15 @@ void SHT31::loadID() {
 
   SHT31::_id[idlen] = '\0';
   SHT31::_id_set = true;
+
+  #ifdef WIIPOD_DEBUG_SERIAL
+    DEBUG_DELAY();
+    WIIPOD_DEBUG_SERIAL.print(F("SHT31 ID Loaded: '"));
+    WIIPOD_DEBUG_SERIAL.print(SHT31::_id);
+    WIIPOD_DEBUG_SERIAL.print(F("' @"));
+    WIIPOD_DEBUG_SERIAL.println((uint16_t)SHT31::_id, HEX);
+    DEBUG_DELAY();
+  #endif
 }
 
 i2cip_errorlevel_t SHT31::get(state_sht31_t& value, const args_sht31_t& args) {

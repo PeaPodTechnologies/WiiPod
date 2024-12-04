@@ -2,7 +2,7 @@
 
 #include <Arduino.h>
 
-#define DEBUG 1 // Uncomment to enable debug
+// #define DEBUG 1 // Uncomment to enable debug
 
 // BASIC DEBUG MACRO
 #ifdef DEBUG
@@ -35,5 +35,5 @@
 
 #endif
 
-#include <../I2CIP/debug.h>
+// #include <../I2CIP/debug.h>
 // #include <../FiniteStateMachine/debug.h>

@@ -2,7 +2,9 @@
 
 #include <Arduino.h>
 
-// #define DEBUG 1 // Uncomment to enable debug
+#ifndef DEBUG
+#define DEBUG 1 // Uncomment to enable debug
+#endif
 
 // BASIC DEBUG MACRO
 #ifdef DEBUG
@@ -22,7 +24,7 @@
 #ifdef WIIPOD_DEBUG_SERIAL
 // #include <DebugJson.h>
 #ifndef DEBUG_DELAY
-#define DEBUG_DELAY() {;}
+#define DEBUG_DELAY() {delayMicroseconds(2);}
 #endif
 #endif
 

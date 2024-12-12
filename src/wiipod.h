@@ -11,6 +11,7 @@ class WiiPod;
 // #include <sht31.h>
 #include <sht45.h>
 #include <k30.h>
+#include <mcp23017.h>
 #include "../src/debug.h"
 
 #define WIIPOD_RENDER_X  64
@@ -26,6 +27,7 @@ class WiiPod : private I2CIP::Module {
     // SHT31* sht31 = nullptr;
     SHT45* sht45 = nullptr;
     K30* k30 = nullptr;
+    MCP23017* mcp = nullptr;
 
     uint8_t wirenum, modulenum;
 
@@ -47,6 +49,7 @@ class WiiPod : private I2CIP::Module {
     i2cip_errorlevel_t updateSHT45(uint8_t bus, bool update = false);
     i2cip_errorlevel_t updateNunchuck(uint8_t bus, bool update = false);
     i2cip_errorlevel_t updateK30(uint8_t bus, bool update = false);
+    i2cip_errorlevel_t updateMCP23017(uint8_t bus, bool update = false);
     // i2cip_errorlevel_t updateSHT31(bool update = false) { return updateSHT31(0, update); }
     // i2cip_errorlevel_t updateNunchuck(bool update = false) { return updateNunchuck(0, update); }
     // i2cip_errorlevel_t updateK30(bool update = false) { return updateK30(0, update); }
@@ -55,6 +58,7 @@ class WiiPod : private I2CIP::Module {
     // const state_sht31_t* getSHT31Cache(void) { return sht31 == nullptr ? nullptr : &sht31->getCache(); }
     const state_sht45_t* getSHT45Cache(void) { return sht45 == nullptr ? nullptr : &sht45->getCache(); }
     const uint16_t* getK30Cache(void) { return k30 == nullptr ? nullptr : &k30->getCache(); }
+    const uint16_t* getMCP23017Cache(void) { return mcp == nullptr ? nullptr : &mcp->getCache(); }
 
     #ifdef DEBUG_SERIAL
     void printNunchuck(Stream& out = DEBUG_SERIAL)

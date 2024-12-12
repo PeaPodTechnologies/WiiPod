@@ -19,7 +19,7 @@
 // #include <avr/wdt.h>
 
 #define TIMESTAMP_LOG_DELTA_MS 5000 // Default
-// #define FSM_CYCLE_DELTA_MS     300  // 3 FPS
+#define FSM_CYCLE_DELTA_MS     3000  // 1 FPS
 #define WIRENUM 0
 #define MODULE  0
 
@@ -58,9 +58,11 @@ void crashout(void) {
 unsigned long lastCycle = 0;
 void logCycle(bool _, const Number& cycle) {
   unsigned long delta = millis() - lastCycle;
-  // if(delta < FSM_CYCLE_DELTA_MS) {
-  //   delay(FSM_CYCLE_DELTA_MS - delta);
-  // }
+  #ifdef FSM_CYCLE_DELTA_MS
+  if(delta < FSM_CYCLE_DELTA_MS) {
+    delay(FSM_CYCLE_DELTA_MS - delta);
+  }
+  #endif
   lastCycle = millis();
 
   String m = _F("==== [ Cycle: ");
@@ -109,17 +111,6 @@ void loop(void) {
 
   unsigned long now = millis();
   errlev = wiipod->update();
-  switch(errlev) {
-    case I2CIP_ERR_HARD:
-      // delete wiipod;
-      // wiipod = nullptr;
-      break;
-    case I2CIP_ERR_SOFT:
-      break;
-    default:
-      errlev = wiipod->updateNunchuck(0, true);
-      break;
-  }
   unsigned long delta = millis() - now;
   #ifdef WIIPOD_DEBUG_SERIAL
     WIIPOD_DEBUG_SERIAL.print(F("[WIIPOD | I2CIP "));
@@ -134,29 +125,28 @@ void loop(void) {
   // 1. Clock, Cycle, Delay
   now = millis();
   if(errlev == I2CIP_ERR_NONE && wiipod != nullptr) {
-    const wiipod_nunchuck_t* data = wiipod->getNunchuckCache();
-    if(data != nullptr) {
-      // Data & Fonts
-      // bool use_c = data->c;
-      // bool use_z = data->z;
-      // bool border = data->z;
-      // bool use_bold = use_c && use_z;
-      // char c = use_bold ? ' ' : (use_z ? 'Z' : (use_c ? '+' : '~'));
+    // errlev = wiipod->updateNunchuck(WIIPOD_BUS_NUNCHUCK, true);
+    // const wiipod_nunchuck_t* data = wiipod->getNunchuckCache();
+    // if(errlev == I2CIP_ERR_NONE && data != nullptr) {
+    //   // Data & Fonts
+    //   // bool use_c = data->c;
+    //   // bool use_z = data->z;
+    //   // bool border = data->z;
+    //   // bool use_bold = use_c && use_z;
+    //   // char c = use_bold ? ' ' : (use_z ? 'Z' : (use_c ? '+' : '~'));
 
-      // wiipod->printNunchuck(WIIPOD_DEBUG_SERIAL); // Render Screen
-
-      // RENDER UPDATE
-      #ifdef WIIPOD_DEBUG_SERIAL
-        wiipod->printNunchuck(WIIPOD_DEBUG_SERIAL); // Render Screen
-        WIIPOD_DEBUG_SERIAL.print(F("[WIIPOD | RENDER "));
-        WIIPOD_DEBUG_SERIAL.print(cycle.get().toString());
-        WIIPOD_DEBUG_SERIAL.print(F(" | "));
-        WIIPOD_DEBUG_SERIAL.print(fps, 0);
-        WIIPOD_DEBUG_SERIAL.print(F(" FPS | 0x"));
-        WIIPOD_DEBUG_SERIAL.print(errlev, HEX);
-        WIIPOD_DEBUG_SERIAL.println(F("]"));
-      #endif
-    }
+    //   // RENDER UPDATE
+    //   #ifdef WIIPOD_DEBUG_SERIAL
+    //     wiipod->printNunchuck(WIIPOD_DEBUG_SERIAL); // Render Screen
+    //     WIIPOD_DEBUG_SERIAL.print(F("[WIIPOD | RENDER "));
+    //     WIIPOD_DEBUG_SERIAL.print(cycle.get().toString());
+    //     WIIPOD_DEBUG_SERIAL.print(F(" | "));
+    //     WIIPOD_DEBUG_SERIAL.print(fps, 0);
+    //     WIIPOD_DEBUG_SERIAL.print(F(" FPS | 0x"));
+    //     WIIPOD_DEBUG_SERIAL.print(errlev, HEX);
+    //     WIIPOD_DEBUG_SERIAL.println(F("]"));
+    //   #endif
+    // }
 
     // Get SHT31 Data
     // errlev = wiipod->updateSHT31(1, true);
@@ -171,29 +161,31 @@ void loop(void) {
     //   }
     // }
 
-    errlev = wiipod->updateSHT45(0, true);
-    if(errlev == I2CIP_ERR_NONE) {
-      const state_sht45_t* sht45 = wiipod->getSHT45Cache();
-      if(sht45 != nullptr) {
-        #ifdef WIIPOD_DEBUG_SERIAL
-          WIIPOD_DEBUG_SERIAL.print(F("[WIIPOD | SHT45] TEMPERATURE "));
-          WIIPOD_DEBUG_SERIAL.print(sht45->temperature, 1);
-          WIIPOD_DEBUG_SERIAL.print(F("C, HUMIDITY "));
-          WIIPOD_DEBUG_SERIAL.print(sht45->humidity, 1);
-          WIIPOD_DEBUG_SERIAL.println(F("%"));
-        #endif
-      }
-    }
+    errlev = wiipod->updateSHT45(WIIPOD_BUS_SHT45, true);
+    // if(errlev == I2CIP_ERR_NONE) {
+    //   const state_sht45_t* sht45 = wiipod->getSHT45Cache();
+    //   if(sht45 != nullptr) {
+    //     #ifdef WIIPOD_DEBUG_SERIAL
+    //       WIIPOD_DEBUG_SERIAL.print(F("[WIIPOD | SHT45] TEMPERATURE "));
+    //       WIIPOD_DEBUG_SERIAL.print(sht45->temperature, 1);
+    //       WIIPOD_DEBUG_SERIAL.print(F("C, HUMIDITY "));
+    //       WIIPOD_DEBUG_SERIAL.print(sht45->humidity, 1);
+    //       WIIPOD_DEBUG_SERIAL.println(F("%"));
+    //     #endif
+    //   }
+    // }
 
-    errlev = wiipod->updateK30(1, true);
-    if(errlev == I2CIP_ERR_NONE) {
-      const uint16_t* k30 = wiipod->getK30Cache();
-      if(k30 != nullptr) {
-        WIIPOD_DEBUG_SERIAL.print(F("[WIIPOD | K30] CO2 "));
-        WIIPOD_DEBUG_SERIAL.print(*k30);
-        WIIPOD_DEBUG_SERIAL.print(F(" PPM"));
-      }
-    }
+    errlev = wiipod->updateK30(WIIPOD_BUS_K30, true);
+    // if(errlev == I2CIP_ERR_NONE) {
+    //   const uint16_t* k30 = wiipod->getK30Cache();
+    //   if(k30 != nullptr) {
+    //     WIIPOD_DEBUG_SERIAL.print(F("[WIIPOD | K30] CO2 "));
+    //     WIIPOD_DEBUG_SERIAL.print(*k30);
+    //     WIIPOD_DEBUG_SERIAL.print(F(" PPM"));
+    //   }
+    // }
+
+    errlev = wiipod->updateMCP23017(WIIPOD_BUS_MCP, true);
   }
 
   fps += 1000.0 / (millis() - now); fps /= 2.0; // Rolling average

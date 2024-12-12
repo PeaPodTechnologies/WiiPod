@@ -4,6 +4,7 @@
 // #include <sht31.h>
 #include <sht45.h>
 #include <k30.h>
+#include <mcp23017.h>
 #include "../src/debug.h"
 
 using namespace I2CIP;
@@ -17,6 +18,7 @@ DeviceGroup* WiiPod::deviceGroupFactory(const i2cip_id_t& id) {
   // SHT31::loadID();
   SHT45::loadID();
   K30::loadID();
+  MCP23017::loadID();
   refresh = true;
 
   if(id == EEPROM::getStaticIDBuffer() || strcmp(id, EEPROM::getStaticIDBuffer()) == 0) {
@@ -33,6 +35,9 @@ DeviceGroup* WiiPod::deviceGroupFactory(const i2cip_id_t& id) {
   }
   if(id == K30::getStaticIDBuffer() || strcmp(id, K30::getStaticIDBuffer()) == 0) {
     return new DeviceGroup(K30::getStaticIDBuffer(), K30::k30Factory);
+  }
+  if(id == MCP23017::getStaticIDBuffer() || strcmp(id, MCP23017::getStaticIDBuffer()) == 0) {
+    return new DeviceGroup(MCP23017::getStaticIDBuffer(), MCP23017::mcp23017Factory);
   }
 
   return nullptr;
@@ -264,16 +269,21 @@ i2cip_errorlevel_t WiiPod::updateNunchuck(uint8_t bus, bool update) {
   // errlev = nunchuck->get(data, nullptr);
   // errlev = modules[MODULE]->operator()(nunchuck_fqa, update);
   // errlev = wiipod(nunchuck_fqa, update);
+  unsigned long now = millis();
   errlev = this->operator()(nunchuck_fqa, update);
+  unsigned long delta = millis() - now;
   
   #ifdef WIIPOD_DEBUG_SERIAL
   if(errlev != I2CIP::I2CIP_ERR_NONE) {
     WIIPOD_DEBUG_SERIAL.print(F("FAIL "));
     WIIPOD_DEBUG_SERIAL.println(errlev, HEX);
   } else {
-    if(!update) { WIIPOD_DEBUG_SERIAL.println(F("PASS")); return errlev; }
+    WIIPOD_DEBUG_SERIAL.print(F("PASS "));
+    WIIPOD_DEBUG_SERIAL.print(delta / 1000.0, 3);
+    WIIPOD_DEBUG_SERIAL.print(F("s"));
+    if(!update) { WIIPOD_DEBUG_SERIAL.print('\n'); return errlev; }
 
-    WIIPOD_DEBUG_SERIAL.print(F("JOY: ("));
+    WIIPOD_DEBUG_SERIAL.print(F(" | JOY: ("));
     WIIPOD_DEBUG_SERIAL.print((double)nunchuck->getCache().joy_x / 255.0, 2);
     WIIPOD_DEBUG_SERIAL.print(F(", "));
     WIIPOD_DEBUG_SERIAL.print((double)nunchuck->getCache().joy_y / 255.0, 2);
@@ -472,15 +482,91 @@ i2cip_errorlevel_t WiiPod::updateK30(uint8_t bus, bool update) {
   #endif
 
   // errlev = modules[MODULE]->operator()(k30_fqa, update);
+  unsigned long now = millis();
   errlev = this->operator()(k30, update);
+  unsigned long delta = millis() - now;
   // errlev = wiipod(k30_fqa, update);
   #ifdef WIIPOD_DEBUG_SERIAL
   if(errlev == I2CIP::I2CIP_ERR_NONE) {
-    if(!update) { WIIPOD_DEBUG_SERIAL.println(F("PASS")); return errlev; }
+    WIIPOD_DEBUG_SERIAL.print(F("PASS "));
+    WIIPOD_DEBUG_SERIAL.print(delta / 1000.0, 3);
+    WIIPOD_DEBUG_SERIAL.print(F("s"));
+    if(!update) { WIIPOD_DEBUG_SERIAL.print('\n'); return errlev; }
+    // New cache!
+    WIIPOD_DEBUG_SERIAL.print(F(" CO2: "));
+    WIIPOD_DEBUG_SERIAL.print(k30->getCache());
+    WIIPOD_DEBUG_SERIAL.println(F("PPM"));
+  } else {
+    WIIPOD_DEBUG_SERIAL.print(F("FAIL "));
+    WIIPOD_DEBUG_SERIAL.println(errlev, HEX);
+  }
+  #endif
 
-    WIIPOD_DEBUG_SERIAL.print(F("CO2: "));
-    WIIPOD_DEBUG_SERIAL.print(k30->getCache(), 2);
-    WIIPOD_DEBUG_SERIAL.print(F("ppm"));
+  return errlev;
+}
+
+i2cip_errorlevel_t WiiPod::updateMCP23017(uint8_t bus, bool update) {
+  MCP23017::loadID();
+  i2cip_errorlevel_t errlev;
+  i2cip_fqa_t mcp_fqa = I2CIP::createFQA(getWireNum(), getModuleNum(), bus, I2CIP_MCP23017_ADDRESS);
+  if(mcp == nullptr) {
+    // if(!modules[MODULE]->add(*K30::k30Factory(k30_fqa), true)) { Serial.println(F("ADD")); crashout(); }
+    // k30 = (K30*)modules[MODULE]->operator[](k30_fqa);
+    // if(k30 == nullptr || k30->getFQA() != k30_fqa) { Serial.println(F("FQA")); crashout(); }
+    // if(modules[MODULE]->operator[]("K30") == nullptr) { Serial.println(F("DG")); crashout(); }
+
+    // DeviceGroup* k30_dg = modules[MODULE]->operator[]("K30");
+    DeviceGroup* mcp_dg = this->operator[](MCP23017::getStaticIDBuffer());
+    // DeviceGroup* k30_dg = wiipod["K30"];
+    if(mcp_dg == nullptr) {
+      // delete k30_dg; k30_dg = nullptr; Serial.println("DG"); crashout(); }
+      Serial.println("DG"); return I2CIP::I2CIP_ERR_SOFT; }
+    mcp = (MCP23017*)(mcp_dg->operator()(mcp_fqa));
+    if(mcp == nullptr || mcp->getFQA() != mcp_fqa) {
+      // Serial.println(F("FQA")); crashout(); }
+      Serial.println(F("FQA")); return I2CIP::I2CIP_ERR_SOFT; }
+    // if(!modules[MODULE]->add(*k30, true)) { Serial.println(F("ADD")); crashout(); }
+    if(!this->add(k30, true)) {
+      // Serial.println(F("ADD")); crashout(); }
+      Serial.println(F("ADD")); return I2CIP::I2CIP_ERR_SOFT; }
+    // if(!wiipod.add(*k30, true)) { Serial.println(F("ADD")); crashout(); }
+
+    // k30 = (K30*)(modules[MODULE]->operator[]("K30")->operator()(mcp_fqa));
+
+  }
+
+  #ifdef WIIPOD_DEBUG_SERIAL
+    WIIPOD_DEBUG_SERIAL.print("[");
+    WIIPOD_DEBUG_SERIAL.print(MCP23017::getStaticIDBuffer());
+    WIIPOD_DEBUG_SERIAL.print(F("] "));
+    WIIPOD_DEBUG_SERIAL.print(I2CIP_FQA_SEG_I2CBUS(mcp_fqa), HEX);
+    WIIPOD_DEBUG_SERIAL.print(F(":"));
+    WIIPOD_DEBUG_SERIAL.print(I2CIP_FQA_SEG_MODULE(mcp_fqa), HEX);
+    WIIPOD_DEBUG_SERIAL.print(F(":"));
+    WIIPOD_DEBUG_SERIAL.print(I2CIP_FQA_SEG_MUXBUS(mcp_fqa), HEX);
+    WIIPOD_DEBUG_SERIAL.print(F(":"));
+    WIIPOD_DEBUG_SERIAL.print(I2CIP_FQA_SEG_DEVADR(mcp_fqa), HEX);
+    WIIPOD_DEBUG_SERIAL.print(F(" | "));
+  #endif
+
+  // errlev = modules[MODULE]->operator()(mcp_fqa, update);
+  unsigned long now = millis();
+  errlev = this->operator()(mcp, update);
+  unsigned long delta = millis() - now;
+  // errlev = wiipod(mcp_fqa, update);
+  #ifdef WIIPOD_DEBUG_SERIAL
+  if(errlev == I2CIP::I2CIP_ERR_NONE) {
+    WIIPOD_DEBUG_SERIAL.print(F("PASS "));
+    WIIPOD_DEBUG_SERIAL.print(delta / 1000.0, 3);
+    WIIPOD_DEBUG_SERIAL.print(F("s"));
+
+    if(!update) { WIIPOD_DEBUG_SERIAL.println(); return errlev; }
+
+    WIIPOD_DEBUG_SERIAL.print(F(" | A: 0b"));
+    WIIPOD_DEBUG_SERIAL.print((uint8_t)(mcp->getCache()), BIN);
+    WIIPOD_DEBUG_SERIAL.print(F(" | B: 0b"));
+    WIIPOD_DEBUG_SERIAL.println((uint8_t)(mcp->getCache() >> 8), BIN);
+  //   WIIPOD_DEBUG_SERIAL.print(F("ppm"));
   } else {
     WIIPOD_DEBUG_SERIAL.print(F("FAIL "));
     WIIPOD_DEBUG_SERIAL.println(errlev, HEX);

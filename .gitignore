@@ -2,8 +2,5 @@
 *.DS_Store
 .vscode/
 
-lib/**
+# lib/**
 backup/**
-
-# For now, ignore all tests
-test/** 

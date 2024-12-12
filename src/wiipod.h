@@ -7,11 +7,11 @@
 class WiiPod;
 #define MAIN_CLASS_NAME WiiPod
 
-#include <nunchuck.h>
+#include <Nunchuck.h>
 // #include <sht31.h>
-#include <sht45.h>
-#include <k30.h>
-#include <mcp23017.h>
+#include <SHT45.h>
+#include <K30.h>
+#include <MCP23017.h>
 #include "../src/debug.h"
 
 #define WIIPOD_RENDER_X  64

@@ -124,30 +124,36 @@ void loop(void) {
   #endif
 
   // 1. Clock, Cycle, Delay
-  now = millis();
   if(errlev == I2CIP_ERR_NONE && wiipod != nullptr) {
-    // errlev = wiipod->updateNunchuck(WIIPOD_BUS_NUNCHUCK, true);
-    // const wiipod_nunchuck_t* data = wiipod->getNunchuckCache();
-    // if(errlev == I2CIP_ERR_NONE && data != nullptr) {
-    //   // Data & Fonts
-    //   // bool use_c = data->c;
-    //   // bool use_z = data->z;
-    //   // bool border = data->z;
-    //   // bool use_bold = use_c && use_z;
-    //   // char c = use_bold ? ' ' : (use_z ? 'Z' : (use_c ? '+' : '~'));
+  //   errlev = wiipod->updateNunchuck(WIIPOD_BUS_NUNCHUCK, true);
+  //   const wiipod_nunchuck_t* data = wiipod->getNunchuckCache();
+  //   if(errlev == I2CIP_ERR_NONE && data != nullptr) {
+  //   //   // Data & Fonts
+  //   //   // bool use_c = data->c;
+  //   //   // bool use_z = data->z;
+  //   //   // bool border = data->z;
+  //   //   // bool use_bold = use_c && use_z;
+  //   //   // char c = use_bold ? ' ' : (use_z ? 'Z' : (use_c ? '+' : '~'));
 
-    //   // RENDER UPDATE
-    //   #ifdef WIIPOD_DEBUG_SERIAL
-    //     wiipod->printNunchuck(WIIPOD_DEBUG_SERIAL); // Render Screen
-    //     WIIPOD_DEBUG_SERIAL.print(F("[WIIPOD | RENDER "));
-    //     WIIPOD_DEBUG_SERIAL.print(cycle.get().toString());
-    //     WIIPOD_DEBUG_SERIAL.print(F(" | "));
-    //     WIIPOD_DEBUG_SERIAL.print(fps, 0);
-    //     WIIPOD_DEBUG_SERIAL.print(F(" FPS | 0x"));
-    //     WIIPOD_DEBUG_SERIAL.print(errlev, HEX);
-    //     WIIPOD_DEBUG_SERIAL.println(F("]"));
-    //   #endif
-    // }
+  //     // if(wiipod->screen == nullptr) {wiipod->screen = new Screen(I2CIP::createFQA(WIRENUM, MODULE, WIIPOD_BUS_SCREEN, I2CIP_SCREEN_ADDRESS));}
+
+  //     // now = millis();
+  //     // errlev = wiipod->renderNunchuck();
+  //     // if(errlev == I2CIP_ERR_HARD) { delete wiipod->screen; wiipod->screen = nullptr; }
+  //     // fps += 1000.0 / (millis() - now); fps /= 2.0; // Rolling average
+
+  //     // // RENDER UPDATE
+  //     // #ifdef WIIPOD_DEBUG_SERIAL
+  //     //   wiipod->printNunchuck(WIIPOD_DEBUG_SERIAL); // Render Screen
+  //     //   WIIPOD_DEBUG_SERIAL.print(F("[WIIPOD | RENDER "));
+  //     //   WIIPOD_DEBUG_SERIAL.print(cycle.get().toString());
+  //     //   WIIPOD_DEBUG_SERIAL.print(F(" | "));
+  //     //   WIIPOD_DEBUG_SERIAL.print(fps, 0);
+  //     //   WIIPOD_DEBUG_SERIAL.print(F(" FPS | 0x"));
+  //     //   WIIPOD_DEBUG_SERIAL.print(errlev, HEX);
+  //     //   WIIPOD_DEBUG_SERIAL.println(F("]"));
+  //     // #endif
+  //   }
 
     // Get SHT31 Data
     // errlev = wiipod->updateSHT31(1, true);
@@ -189,13 +195,28 @@ void loop(void) {
     errlev = wiipod->updateMCP23017(WIIPOD_BUS_MCP, true);
 
     errlev = wiipod->updateRotaryEncoder(WIIPOD_BUS_ROTARY, true);
+    if(errlev == I2CIP_ERR_NONE) {
+      const i2cip_rotaryencoder_t* seesaw = wiipod->getSeesawCache();
+      if(seesaw != nullptr) {
+        if(wiipod->screen == nullptr) {wiipod->screen = new SSD1306(I2CIP::createFQA(WIRENUM, MODULE, WIIPOD_BUS_SCREEN, I2CIP_SSD1306_ADDRESS));}
+        if(wiipod->screen != nullptr) {
+          now = millis();
+          errlev = wiipod->renderRotary();
+          if(errlev != I2CIP_ERR_NONE) { 
+            #ifdef WIIPOD_DEBUG_SERIAL
+              WIIPOD_DEBUG_SERIAL.print(F("[WIIPOD | RENDER] ROTARY -> SCREEN FAIL "));
+              WIIPOD_DEBUG_SERIAL.print(errlev, HEX);
+            #endif
+          }
+        }
+      }
+    }
 
-    #ifdef WIIPOD_DEBUG_SERIAL
-      wiipod->scanToPrint(WIIPOD_DEBUG_SERIAL, WIRENUM, MODULE);
-    #endif
+  // Uncomment to perform scan
+    // #ifdef WIIPOD_DEBUG_SERIAL
+    //   wiipod->scanToPrint(WIIPOD_DEBUG_SERIAL, WIRENUM, MODULE);
+    // #endif
   }
-
-  fps += 1000.0 / (millis() - now); fps /= 2.0; // Rolling average
 
   // delay(1000 / 30); // 30 FPS
 }

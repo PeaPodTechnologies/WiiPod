@@ -6,6 +6,7 @@
 #include <K30.h>
 #include <MCP23017.h>
 #include <Seesaw.h>
+#include <SSD1306.h>
 #include "../src/debug.h"
 
 using namespace I2CIP;
@@ -43,6 +44,9 @@ DeviceGroup* WiiPod::deviceGroupFactory(const i2cip_id_t& id) {
   }
   if(id == Seesaw_RotaryEncoder::getStaticIDBuffer() || strcmp(id, Seesaw_RotaryEncoder::getStaticIDBuffer()) == 0) {
     return new DeviceGroup(Seesaw_RotaryEncoder::getStaticIDBuffer(), Seesaw_RotaryEncoder::rotaryEncoderFactory);
+  }
+  if(id == SSD1306::getStaticIDBuffer() || strcmp(id, SSD1306::getStaticIDBuffer()) == 0) {
+    return new DeviceGroup(SSD1306::getStaticIDBuffer(), SSD1306::ssd1306Factory);
   }
 
   return nullptr;

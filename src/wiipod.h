@@ -43,6 +43,8 @@ class WiiPod : private I2CIP::Module {
     // Future
     // bool parseEEPROMContents(const char* eeprom_contents) override;
 
+    SSD1306* screen = nullptr;
+
     bool initialize(); // Does Discover
     i2cip_errorlevel_t check();
     i2cip_errorlevel_t update();
@@ -74,6 +76,9 @@ class WiiPod : private I2CIP::Module {
       nunchuck->printToScreen(out, WIIPOD_RENDER_X, WIIPOD_RENDER_Y, nunchuck->getCache().z, nunchuck->getCache().c);
       // nunchuck->printToScreen(out, WIIPOD_RENDER_X, WIIPOD_RENDER_Y);
     }
+
+    i2cip_errorlevel_t renderNunchuck() { return (nunchuck == nullptr || screen == nullptr) ? I2CIP::I2CIP_ERR_HARD : nunchuck->printToScreen(screen, I2CIP_SSD1306_WIDTH, I2CIP_SSD1306_HEIGHT); }
+    i2cip_errorlevel_t renderRotary() { return (seesaw == nullptr || screen == nullptr) ? I2CIP::I2CIP_ERR_HARD : seesaw->printToScreen(screen, I2CIP_SSD1306_WIDTH, I2CIP_SSD1306_HEIGHT); }
 
     #ifdef DEBUG_SERIAL
     void scanToPrint(Stream& out = DEBUG_SERIAL, uint8_t wire, uint8_t module);

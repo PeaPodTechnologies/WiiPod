@@ -1,4 +1,5 @@
 #ifndef UNIT_TEST
+#define UNIT_TEST 1
 #define IS_MAIN 1
 
 // INCLUDES & MACROS
@@ -186,6 +187,12 @@ void loop(void) {
     // }
 
     errlev = wiipod->updateMCP23017(WIIPOD_BUS_MCP, true);
+
+    errlev = wiipod->updateRotaryEncoder(WIIPOD_BUS_ROTARY, true);
+
+    #ifdef WIIPOD_DEBUG_SERIAL
+      wiipod->scanToPrint(WIIPOD_DEBUG_SERIAL, WIRENUM, MODULE);
+    #endif
   }
 
   fps += 1000.0 / (millis() - now); fps /= 2.0; // Rolling average

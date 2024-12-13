@@ -12,6 +12,7 @@ class WiiPod;
 #include <SHT45.h>
 #include <K30.h>
 #include <MCP23017.h>
+#include <Seesaw.h>
 #include "../src/debug.h"
 
 #define WIIPOD_RENDER_X  64
@@ -28,6 +29,7 @@ class WiiPod : private I2CIP::Module {
     SHT45* sht45 = nullptr;
     K30* k30 = nullptr;
     MCP23017* mcp = nullptr;
+    Seesaw_RotaryEncoder* seesaw = nullptr;
 
     uint8_t wirenum, modulenum;
 
@@ -50,6 +52,7 @@ class WiiPod : private I2CIP::Module {
     i2cip_errorlevel_t updateNunchuck(uint8_t bus, bool update = false);
     i2cip_errorlevel_t updateK30(uint8_t bus, bool update = false);
     i2cip_errorlevel_t updateMCP23017(uint8_t bus, bool update = false);
+    i2cip_errorlevel_t updateRotaryEncoder(uint8_t bus, bool update = false);
     // i2cip_errorlevel_t updateSHT31(bool update = false) { return updateSHT31(0, update); }
     // i2cip_errorlevel_t updateNunchuck(bool update = false) { return updateNunchuck(0, update); }
     // i2cip_errorlevel_t updateK30(bool update = false) { return updateK30(0, update); }
@@ -59,6 +62,7 @@ class WiiPod : private I2CIP::Module {
     const state_sht45_t* getSHT45Cache(void) { return sht45 == nullptr ? nullptr : &sht45->getCache(); }
     const uint16_t* getK30Cache(void) { return k30 == nullptr ? nullptr : &k30->getCache(); }
     const uint16_t* getMCP23017Cache(void) { return mcp == nullptr ? nullptr : &mcp->getCache(); }
+    const i2cip_rotaryencoder_t* getSeesawCache(void) { return seesaw == nullptr ? nullptr : &seesaw->getCache(); }
 
     #ifdef DEBUG_SERIAL
     void printNunchuck(Stream& out = DEBUG_SERIAL)
@@ -70,6 +74,12 @@ class WiiPod : private I2CIP::Module {
       nunchuck->printToScreen(out, WIIPOD_RENDER_X, WIIPOD_RENDER_Y, nunchuck->getCache().z, nunchuck->getCache().c);
       // nunchuck->printToScreen(out, WIIPOD_RENDER_X, WIIPOD_RENDER_Y);
     }
+
+    #ifdef DEBUG_SERIAL
+    void scanToPrint(Stream& out = DEBUG_SERIAL, uint8_t wire, uint8_t module);
+    #else
+    void scanToPrint(Stream& out, uint8_t wire, uint8_t module);
+    #endif
 };
 
 #endif

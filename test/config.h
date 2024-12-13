@@ -17,5 +17,6 @@
 #define WIIPOD_BUS_SHT45  1
 #define WIIPOD_BUS_K30 1
 #define WIIPOD_BUS_MCP 0
+#define WIIPOD_BUS_ROTARY 0
 
 #endif

@@ -3,7 +3,7 @@
 #include <Arduino.h>
 
 #ifndef DEBUG
-#define DEBUG 1 // Uncomment to enable debug
+// #define DEBUG 1 // Uncomment to enable debug
 #endif
 
 // BASIC DEBUG MACRO
@@ -16,9 +16,9 @@
 #endif
 
 // CROSS-LIBRARY DEBUG COMPATIBILITY
-#ifdef DEBUG_SERIAL
-#define WIIPOD_DEBUG_SERIAL DEBUG_SERIAL
-#endif
+// #ifdef DEBUG_SERIAL
+#define WIIPOD_DEBUG_SERIAL Serial
+// #endif
 
 // DEBUG DELAY MACRO FOR SERIAL OUTPUT STABILITY (OPTIONAL)
 #ifdef WIIPOD_DEBUG_SERIAL

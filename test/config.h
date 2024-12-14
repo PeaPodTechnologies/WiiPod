@@ -13,11 +13,13 @@
   SET_LOOP_TASK_STACK_SIZE( 32*1024 ); // Thanks to: https://community.platformio.org/t/esp32-stack-configuration-reloaded/20994/8; https://github.com/espressif/arduino-esp32/pull/5173
 #endif
 
-#define WIIPOD_BUS_NUNCHUCK 0
-#define WIIPOD_BUS_SHT45  1
-#define WIIPOD_BUS_K30 1
+// #define WIIPOD_BUS_NUNCHUCK 0
+// #define WIIPOD_BUS_SHT45  1
+// #define WIIPOD_BUS_K30 1
 #define WIIPOD_BUS_MCP 0
 #define WIIPOD_BUS_ROTARY 0
-#define WIIPOD_BUS_SCREEN 1
+// #define WIIPOD_BUS_SCREEN 1
+#define WIIPOD_BUS_ADS 0
+#define WIIPOD_BUS_PCA 1
 
 #endif

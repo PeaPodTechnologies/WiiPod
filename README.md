@@ -6,3 +6,9 @@
  <!-- Note to self: should class declarations be namespaced inside `I2CIP::`? -->
 
  Note: K30 needs hot-swap buffer (i.e. TCA9548A) to fix subnet glitching
+
+ Note: Nunchuck glitching is still TODO
+
+ Note: At init, MCP Bank A is configured to be output (1), and Bank B is configured to be input (0)
+
+ Note: I2CIP setbus/resetbus = false; should be the default in some (most?) cases

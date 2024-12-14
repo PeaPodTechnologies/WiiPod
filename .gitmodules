@@ -22,3 +22,6 @@
 [submodule "lib/I2CIP-SSD1306"]
 	path = lib/I2CIP-SSD1306
 	url = https://github.com/PeaPodTechnologies/I2CIP-SSD1306
+[submodule "lib/I2CIP-PCA9685"]
+	path = lib/I2CIP-PCA9685
+	url = https://github.com/PeaPodTechnologies/I2CIP-PCA9685

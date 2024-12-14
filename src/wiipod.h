@@ -13,6 +13,8 @@ class WiiPod;
 #include <K30.h>
 #include <MCP23017.h>
 #include <Seesaw.h>
+#include <SSD1306.h>
+#include <PCA9685.h>
 #include "../src/debug.h"
 
 #define WIIPOD_RENDER_X  64
@@ -30,6 +32,7 @@ class WiiPod : private I2CIP::Module {
     K30* k30 = nullptr;
     MCP23017* mcp = nullptr;
     Seesaw_RotaryEncoder* seesaw = nullptr;
+    PCA9685* pca = nullptr;
 
     uint8_t wirenum, modulenum;
 
@@ -55,6 +58,8 @@ class WiiPod : private I2CIP::Module {
     i2cip_errorlevel_t updateK30(uint8_t bus, bool update = false);
     i2cip_errorlevel_t updateMCP23017(uint8_t bus, bool update = false);
     i2cip_errorlevel_t updateRotaryEncoder(uint8_t bus, bool update = false);
+    i2cip_errorlevel_t updatePCA9685(uint8_t bus, bool update = false);
+
     // i2cip_errorlevel_t updateSHT31(bool update = false) { return updateSHT31(0, update); }
     // i2cip_errorlevel_t updateNunchuck(bool update = false) { return updateNunchuck(0, update); }
     // i2cip_errorlevel_t updateK30(bool update = false) { return updateK30(0, update); }

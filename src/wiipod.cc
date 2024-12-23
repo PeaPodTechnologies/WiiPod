@@ -9,6 +9,7 @@
 #include <PCA9685.h>
 #include <ADS1115.h>
 #include <SSD1306.h>
+#include <PCA9632.h>
 #include "../src/debug.h"
 
 #define WIIPOD_DEVICEGROUP_BREAK(dg) if(dg != nullptr) { return dg; }
@@ -45,6 +46,9 @@ DeviceGroup* WiiPod::deviceGroupFactory(const i2cip_id_t& id) {
   WIIPOD_DEVICEGROUP_BREAK(dg);
 
   dg = DeviceGroup::create<ADS1115>(id);
+  WIIPOD_DEVICEGROUP_BREAK(dg);
+
+  dg = DeviceGroup::create<PCA9632>(id);
   WIIPOD_DEVICEGROUP_BREAK(dg);
   
   return DeviceGroup::create<SSD1306>(id);
@@ -378,9 +382,19 @@ i2cip_errorlevel_t WiiPod::update() {
   #endif
   #endif
 
+  #ifdef WIIPOD_BUS_LCD
+  // errlev = this->updateADS1115(WIIPOD_BUS_ADS, true);
+  #ifdef WIIPOD_DEBUG_SERIAL
+  i2cip_args_io_t lcd_args = {.a = nullptr, .s = "Hello, World!", .b = nullptr};
+  errlev = this->operator()<PCA9632>(createFQA(WIIPOD_BUS_LCD, I2CIP_PCA9632_ADDRESS), true, lcd_args, WIIPOD_DEBUG_SERIAL);
+  #else
+  errlev = this->operator()<PCA9632>(createFQA(WIIPOD_BUS_LCD, I2CIP_PCA9632_ADDRESS), true);
+  #endif
+  #endif
+
 // Uncomment to perform scan
   // #ifdef WIIPOD_DEBUG_SERIAL
-  //   this->scanToPrint(WIIPOD_DEBUG_SERIAL, this->wirenum, this->modulenum);
+  //   this->scanToPrint(WIIPOD_DEBUG_SERIAL);
   // #endif
 
   return errlev;
@@ -451,15 +465,15 @@ i2cip_errorlevel_t WiiPod::update() {
 //     if(!update) { WIIPOD_DEBUG_SERIAL.print('\n'); return errlev; }
 
 //     WIIPOD_DEBUG_SERIAL.print(F(" | JOY: ("));
-//     WIIPOD_DEBUG_SERIAL.print((double)nunchuck->getCache().joy_x / 255.0, 2);
+//     WIIPOD_DEBUG_SERIAL.print((double)nunchuck->getCache().x / 255.0, 2);
 //     WIIPOD_DEBUG_SERIAL.print(F(", "));
-//     WIIPOD_DEBUG_SERIAL.print((double)nunchuck->getCache().joy_y / 255.0, 2);
+//     WIIPOD_DEBUG_SERIAL.print((double)nunchuck->getCache().y / 255.0, 2);
 //     // WIIPOD_DEBUG_SERIAL.print(F(") | ACCEL: ("));
-//     // WIIPOD_DEBUG_SERIAL.print(nunchuck_data.accel_x);
+//     // WIIPOD_DEBUG_SERIAL.print(nunchuck_data.a_x);
 //     // WIIPOD_DEBUG_SERIAL.print(F(", "));
-//     // WIIPOD_DEBUG_SERIAL.print(nunchuck_data.accel_y);
+//     // WIIPOD_DEBUG_SERIAL.print(nunchuck_data.a_y);
 //     // WIIPOD_DEBUG_SERIAL.print(F(", "));
-//     // WIIPOD_DEBUG_SERIAL.print(nunchuck_data.accel_z);
+//     // WIIPOD_DEBUG_SERIAL.print(nunchuck_data.a_z);
 //     WIIPOD_DEBUG_SERIAL.print(F(") | C: "));
 //     WIIPOD_DEBUG_SERIAL.print(nunchuck->getCache().c ? F("Y") : F("N"));
 //     WIIPOD_DEBUG_SERIAL.print(F(" | Z: "));
@@ -959,11 +973,11 @@ i2cip_errorlevel_t WiiPod::update() {
 //   return errlev;
 // }
 
-void WiiPod::scanToPrint(uint8_t wire, uint8_t module, Stream& out) {
+void WiiPod::scanToPrint(Stream& out) {
   out.print(F("[WIIPOD | SCAN] "));
-  out.print(wire, HEX);
+  out.print(getWireNum(), HEX);
   out.print(F(":"));
-  out.print(module, HEX);
+  out.print(getModuleNum(), HEX);
   out.println(F(" START (~10s)"));
   for(uint8_t b = 0; b < 0b111; b++) // 3 bit i2c bus
   {
@@ -975,14 +989,14 @@ void WiiPod::scanToPrint(uint8_t wire, uint8_t module, Stream& out) {
     {
       if(a >= I2CIP_MUX_ADDR_MIN && a <= I2CIP_MUX_ADDR_MAX) { continue; }
       if(a >= 0x78 && a <= 0x7F) { continue; } // 0x78 - 0x7F reserved
-      i2cip_fqa_t fqa = I2CIP::createFQA(wire, module, b, a);
+      i2cip_fqa_t fqa = I2CIP::createFQA(getWireNum(), getModuleNum(), b, a);
       i2cip_errorlevel_t errlev = Device::pingTimeout(fqa, first, false, 10);
       first = false;
       if(errlev == I2CIP_ERR_NONE) {
         out.print(F("[WIIPOD | SCAN] "));
-        out.print(wire, HEX);
+        out.print(getWireNum(), HEX);
         out.print(F(":"));
-        out.print(module, HEX);
+        out.print(getModuleNum(), HEX);
         out.print(F(":"));
         out.print(b, HEX);
         out.print(F(":"));

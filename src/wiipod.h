@@ -16,6 +16,7 @@ class WiiPod;
 #include <Seesaw.h>
 #include <SHT45.h>
 #include <SSD1306.h>
+#include <PCA9632.h>
 #include "../src/debug.h"
 
 // #define WIIPOD_BUS_NUNCHUCK 0
@@ -26,6 +27,7 @@ class WiiPod;
 // #define WIIPOD_BUS_SCREEN 1
 #define WIIPOD_BUS_ADS 0
 #define WIIPOD_BUS_PCA 1
+#define WIIPOD_BUS_LCD 1 // I2CIP_MUX_BUS_FAKE
 
 #define WIIPOD_RENDER_X  64
 #define WIIPOD_RENDER_Y  36
@@ -102,9 +104,9 @@ class WiiPod : private I2CIP::Module {
     // i2cip_errorlevel_t renderRotary() { return (seesaw == nullptr || screen == nullptr) ? I2CIP::I2CIP_ERR_HARD : seesaw->printToScreen(screen, I2CIP_SSD1306_WIDTH, I2CIP_SSD1306_HEIGHT); }
 
     #ifdef DEBUG_SERIAL
-    void scanToPrint(uint8_t wire, uint8_t module, Stream& out = DEBUG_SERIAL);
+    void scanToPrint(Stream& out = DEBUG_SERIAL);
     #else
-    void scanToPrint(uint8_t wire, uint8_t module, Stream& out);
+    void scanToPrint(Stream& out);
     #endif
 };
 

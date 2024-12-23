@@ -19,3 +19,7 @@ Note: At init, MCP Bank A is configured to be output (1), and Bank B is configur
 Note: I2CIP setbus/resetbus = false; should be the default in some (most?) cases
 
 TODO: Re-implement MCP23017/MCP23017_Pin more like Seesaw_RotaryEncoder; Implement MCP23017_Byte, reuse MCP23017 for MCP23017_Word
+
+TODO: 16x2 LCD display
+
+TODO: JSON, RPi

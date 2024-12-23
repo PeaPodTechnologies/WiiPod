@@ -26,7 +26,7 @@ class WiiPod;
 #define WIIPOD_BUS_ROTARY 0
 // #define WIIPOD_BUS_SCREEN 1
 #define WIIPOD_BUS_ADS 0
-#define WIIPOD_BUS_PCA 1
+// #define WIIPOD_BUS_PCA 1
 #define WIIPOD_BUS_LCD 1 // I2CIP_MUX_BUS_FAKE
 
 #define WIIPOD_RENDER_X  64

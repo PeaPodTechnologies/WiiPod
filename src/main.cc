@@ -1,29 +1,44 @@
 #ifndef UNIT_TEST
+#define UNIT_TEST 1
+#define IS_MAIN 1
+
+// INCLUDES & MACROS
 
 #include <Arduino.h>
 
+#include "../test/config.h"
+
+// Uncomment to enable debug
+// #define DEBUG 0
 #include <debug.h>
+#define WIIPOD_DEBUG_SERIAL Serial // This file only
+
 #include <chrono.h>
 #include <I2CIP.h>
-#include <WiiChuck.h>
+#include <wiipod.h>
 
-#include <avr/wdt.h>
+// #include <avr/wdt.h>
 
 #define TIMESTAMP_LOG_DELTA_MS 5000 // Default
-#define FSM_CYCLE_DELTA_MS     100
+#define FSM_CYCLE_DELTA_MS     3000  // 1 FPS
 #define WIRENUM 0
 #define MODULE  0
 
-I2CIP::i2cip_errorlevel_t errlev;
-Variable* cycle;
-void logCycle(bool _, const Number& cycle);
-void logTimestamp(bool _, const fsm_timestamp_t& timestamp);
-// void logDisco(bool _, const bool& on);
+// DECLARATIONS
+extern Chronograph Chronos;
 
-I2CIP::Module* modules[I2CIP_MUX_COUNT] = { nullptr };
+using namespace I2CIP;
+
+// Module* m;  // to be initialized in setup()
+// Module* modules[I2CIP_MUX_COUNT] = { nullptr };
 char idbuffer[10];
 
-Accessory nunchuck1;
+Variable cycle(Number(0, false, false), "Cycle");
+void logCycle(bool _, const Number& cycle);
+
+WiiPod* wiipod = nullptr;
+
+// HELPERS
 
 void crashout(void) {
   while(true) { // Blink
@@ -34,250 +49,82 @@ void crashout(void) {
   }
 }
 
-bool initializeModule(uint8_t wirenum, uint8_t modulenum);
-i2cip_errorlevel_t checkModule(uint8_t wirenum, uint8_t modulenum);
-i2cip_errorlevel_t updateModule(uint8_t wirenum, uint8_t modulenum);
-
-void setup() {
-  // Serial
-  Serial.begin(115200);
-  while(!Serial);
-
-  // Construct States
-  cycle = new Variable(Number(0, false, false), "Cycle");
-  cycle->addLoggerCallback(logCycle);
-  nunchuck1.begin();
-
-  // Chronos.addInterval(TIMESTAMP_LOG_DELTA_MS, &logTimestamp);
-
-  // DebugJson::debugSRAM();
-  
-  #ifdef _AVR_WDT_H_
-    wdt_enable(WDTO_4S);
-  #endif
-
-  // OPTIONAL: FIRST TIME INIT
-  bool r = initializeModule(WIRENUM, MODULE);
-  if (!r) { delete modules[MODULE]; modules[MODULE] = nullptr; crashout(); }
-}
-
-void loop() {
-  #ifdef _AVR_WDT_H_
-    wdt_reset();
-  #endif
-
-  cycle->set(cycle->get() + Number(1, false, false));
-
-  // Watchdog Timer Kickout
-  // if(now > TWENTYFOURHRS_MILLIS) { while(true) { delay(1); } }
-
-  Chronos.set(millis());
-
-  unsigned long i2cip_start = millis();
-  switch(checkModule(WIRENUM, MODULE)) {
-    case I2CIP::I2CIP_ERR_HARD:
-      delete modules[MODULE];
-      modules[MODULE] = nullptr;
-      return;
-    case I2CIP::I2CIP_ERR_SOFT:
-      if (!initializeModule(WIRENUM, MODULE)) { delete modules[MODULE]; modules[MODULE] = nullptr; return; }
-      break;
-    default:
-      errlev = updateModule(WIRENUM, MODULE);
-      break;
-  }
-  unsigned long i2cip_end = millis();
-
-  // DEBUG PRINT: CYCLE COUNT, FPS, and ERRLEV
-  Serial.print(F("[I2CIP | CYCLE "));
-  Serial.print(cycle->get());
-  Serial.print(F(" | "));
-  Serial.print(1000.0 / (i2cip_end - i2cip_start), 0);
-  Serial.print(F(" FPS | 0x"));
-  Serial.print(errlev, HEX);
-  Serial.println(F("]"));
-}
+// int freeRam() {
+//   extern int __heap_start,*__brkval;
+//   int v;
+//   return (int)&v - (__brkval == 0  
+//     ? (int)&__heap_start : (int) __brkval);  
+// }
 
 unsigned long lastCycle = 0;
-
 void logCycle(bool _, const Number& cycle) {
+  unsigned long delta = millis() - lastCycle;
+  #ifdef FSM_CYCLE_DELTA_MS
+  if(delta < FSM_CYCLE_DELTA_MS) {
+    delay(FSM_CYCLE_DELTA_MS - delta);
+  }
+  #endif
+  lastCycle = millis();
+
   String m = _F("==== [ Cycle: ");
   m += cycle.toString();
   m += _F(" @ ");
   m += timestampToString(millis());
-
-  unsigned delta = millis() - lastCycle;
-  unsigned d = 0;
-  if(delta < FSM_CYCLE_DELTA_MS) {
-    d = FSM_CYCLE_DELTA_MS - delta;
-    delay(d);
-  }
-  if(d > 0) {
-    m += _F(" + ");
-    m += d;
-    m += _F("ms");
-  }
+  // if(delta < FSM_CYCLE_DELTA_MS) { 
+    m += " | ";
+    // m += (FSM_CYCLE_DELTA_MS - delta);
+    m += 1000.0 / delta;
+    m += " FPS";
+  // }
+  // m += " | SRAM: ";
+  // m += freeRam();
   m += _F(" ] ====");
 
   Serial.println(m);
 }
 
-bool initializeModule(uint8_t wirenum, uint8_t modulenum) {
-  Serial.print(F("[I2CIP] MODULE "));
-  Serial.print(wirenum);
-  Serial.print(":");
-  Serial.print(modulenum);
-  Serial.print(F(":.:. | INIT: "));
+// MAIN
 
-  if(modules[modulenum] != nullptr) {
-    Serial.print(F("(DELETING) "));
-    delete modules[modulenum];
-  }
-
-  // Initialize module
-  unsigned long now = millis();
-  modules[modulenum] = new I2CIP::Module(WIRENUM, MODULE);
-  unsigned long delta = millis() - now;
-
-  if(modules[modulenum] == nullptr) { 
-    Serial.println(F("FAIL UNREACH"));
-    return false;
-  } else if((I2CIP::EEPROM*)(modules[modulenum]) == nullptr) {
-    Serial.println(F("FAIL EEPROM"));
-    delete modules[modulenum];
-    modules[modulenum] = nullptr;
-    return false;
-  }
-
-  Serial.print(delta / 1000.0, 3);
-  Serial.println("s");
-
-  return true;
+void setup(void) {
+  Serial.begin(115200);
+  while(!Serial) { ; }
+  cycle.addLoggerCallback(logCycle);
 }
 
-i2cip_errorlevel_t checkModule(uint8_t wirenum, uint8_t modulenum) {
-  Serial.print(F("[I2CIP] MODULE "));
-  Serial.print(wirenum, HEX);
-  Serial.print(":");
-  Serial.print(modulenum, HEX);
-  Serial.print(F(":.:. | CHECK: "));
+i2cip_errorlevel_t errlev;
+double fps = 0.0;
+bool flash = false;
+void loop(void) {
 
-  if(modules[modulenum] == nullptr) {
-    Serial.println(F("FAIL ENOENT"));
-    return I2CIP::I2CIP_ERR_SOFT; // ENOENT
+  // FIXED UPDATE
+
+  // 1. Clock, Cycle, Delay
+  Chronos.set(millis()); cycle.set(cycle.get() + Number(1, false, false));
+
+  // 2. I/O and OOP
+  if(wiipod == nullptr) { 
+    #ifdef WIIPOD_DEBUG_SERIAL
+      WIIPOD_DEBUG_SERIAL.println(F("[WIIPOD | SETUP]"));
+      // WIIPOD_DEBUG_SERIAL.print(delta / 1000.0, 3);
+      // WIIPOD_DEBUG_SERIAL.println(F("s"));
+    #endif
+    wiipod = new WiiPod(WIRENUM, MODULE); return;
   }
 
   unsigned long now = millis();
-  i2cip_errorlevel_t errlev = modules[MODULE]->operator()();
+  errlev = wiipod->update();
   unsigned long delta = millis() - now;
+  #ifdef WIIPOD_DEBUG_SERIAL
+    WIIPOD_DEBUG_SERIAL.print(F("[WIIPOD | I2CIP "));
+    WIIPOD_DEBUG_SERIAL.print(cycle.get().toString());
+    WIIPOD_DEBUG_SERIAL.print(F(" | "));
+    WIIPOD_DEBUG_SERIAL.print(1000.0 / delta, 0);
+    WIIPOD_DEBUG_SERIAL.print(F(" FPS | 0x"));
+    WIIPOD_DEBUG_SERIAL.print(errlev, HEX);
+    WIIPOD_DEBUG_SERIAL.println(F("]"));
+  #endif
 
-  switch(errlev) {
-    case I2CIP::I2CIP_ERR_HARD:
-      Serial.print(F("FAIL EIO "));
-      break;
-    case I2CIP::I2CIP_ERR_SOFT:
-      Serial.print(F("FAIL EINVAL "));
-      break;
-    default:
-      Serial.print(F("PASS "));
-      break;
-  }
-  Serial.print(delta / 1000.0, 3);
-  Serial.println(F("s"));
-  // I2CIP_ERR_BREAK(errlev);
-
-  // // Continue - EEPROM check
-  // i2cip_fqa_t eeprom = ((EEPROM*)modules[MODULE])->getFQA();
-
-  // Serial.print(F("[I2CIP] EEPROM "));
-  // Serial.print(wirenum);
-  // Serial.print(":");
-  // Serial.print(modulenum);
-  // Serial.print(":");
-  // Serial.print(I2CIP_FQA_SEG_MUXBUS(eeprom));
-  // Serial.print(":");
-  // Serial.print(I2CIP_FQA_SEG_DEVADR(eeprom));
-  // Serial.print(F(" - CHECK: "));
-
-  // now = millis();
-  // errlev = modules[MODULE]->operator()(eeprom);
-  // delta = millis() - now;
-
-  // switch(errlev) {
-  //   case I2CIP_ERR_HARD:
-  //     Serial.print(F("FAIL EIO "));
-  //     break;
-  //   case I2CIP_ERR_SOFT:
-  //     Serial.print(F("FAIL EINVAL "));
-  //     break;
-  //   case I2CIP_ERR_NONE:
-  //   default:
-  //     Serial.print(F("PASS "));
-  //     break;
-  // }
-  // Serial.print(delta / 1000.0, 3);
-  // Serial.println(F("s"));
-  return errlev;
-}
-
-i2cip_errorlevel_t updateModule(uint8_t wirenum, uint8_t modulenum) {
-  Serial.print(F("[I2CIP] MODULE "));
-  Serial.print(wirenum);
-  Serial.print(":");
-  Serial.print(modulenum);
-  Serial.print(F(":.:. | UPDATE: "));
-
-  if(modules[modulenum] == nullptr) {
-    Serial.println(F("FAIL ENOENT"));
-    return I2CIP::I2CIP_ERR_SOFT; // ENOENT
-  }
-
-  const I2CIP::EEPROM& eeprom = modules[modulenum]->operator const I2CIP::EEPROM &();
-
-  Serial.print(F("EEPROM "));
-  Serial.print(I2CIP_FQA_SEG_I2CBUS(eeprom.getFQA()), HEX);
-  Serial.print(":");
-  Serial.print(I2CIP_FQA_SEG_MODULE(eeprom.getFQA()), HEX);
-  Serial.print(":");
-  Serial.print(I2CIP_FQA_SEG_MUXBUS(eeprom.getFQA()), HEX);
-  Serial.print(":");
-  Serial.print(I2CIP_FQA_SEG_DEVADR(eeprom.getFQA()), HEX);
-  Serial.print(" ");
-
-  unsigned long now = millis();
-  i2cip_errorlevel_t errlev = modules[modulenum]->operator()(eeprom.getFQA(), true);
-  unsigned long delta = millis() - now;
-
-  switch(errlev) {
-    case I2CIP::I2CIP_ERR_HARD:
-      Serial.print(F("FAIL EIO "));
-      break;
-    case I2CIP::I2CIP_ERR_SOFT:
-      Serial.print(F("FAIL EINVAL "));
-      break;
-    default:
-      Serial.print(F("PASS "));
-      break;
-  }
-  Serial.print(delta / 1000.0, 3);
-  Serial.print(F("s"));
-  if(errlev != I2CIP::I2CIP_ERR_NONE) {
-    Serial.println();
-    return errlev;
-  }
-
-  // Bonus Points - Print EEPROM contents
-  const char* cache = eeprom.getCache();
-  if(cache == nullptr || cache[0] == '\0') {
-    Serial.println(F(" EMPTY"));
-    return errlev;
-  }
-
-  Serial.print(F(" \""));
-  Serial.print(cache);
-  Serial.println(F("\""));
-
-  return errlev;
+  // delay(1000 / 30); // 30 FPS
 }
 
 #endif

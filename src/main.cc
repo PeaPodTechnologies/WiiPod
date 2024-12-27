@@ -11,7 +11,7 @@
 // Uncomment to enable debug
 // #define DEBUG 0
 #include <debug.h>
-#define WIIPOD_DEBUG_SERIAL Serial // This file only
+// #define WIIPOD_DEBUG_SERIAL Serial // This file only
 
 #include <chrono.h>
 #include <I2CIP.h>
@@ -38,24 +38,6 @@ void logCycle(bool _, const Number& cycle);
 
 WiiPod* wiipod = nullptr;
 
-// HELPERS
-
-void crashout(void) {
-  while(true) { // Blink
-    digitalWrite(LED_BUILTIN, HIGH);
-    delay(100);
-    digitalWrite(LED_BUILTIN, LOW);
-    delay(100);
-  }
-}
-
-// int freeRam() {
-//   extern int __heap_start,*__brkval;
-//   int v;
-//   return (int)&v - (__brkval == 0  
-//     ? (int)&__heap_start : (int) __brkval);  
-// }
-
 unsigned long lastCycle = 0;
 void logCycle(bool _, const Number& cycle) {
   unsigned long delta = millis() - lastCycle;
@@ -80,7 +62,11 @@ void logCycle(bool _, const Number& cycle) {
   // m += freeRam();
   m += _F(" ] ====");
 
+  #ifdef DEBUG_JSON
+  DEBUG_JSON(m);
+  #else
   Serial.println(m);
+  #endif
 }
 
 // MAIN
@@ -104,7 +90,7 @@ void loop(void) {
   // 2. I/O and OOP
   if(wiipod == nullptr) { 
     #ifdef WIIPOD_DEBUG_SERIAL
-      WIIPOD_DEBUG_SERIAL.println(F("[WIIPOD | SETUP]"));
+      WIIPOD_DEBUG_SERIAL.println(F("[WIIPOD | SETUP] START"));
       // WIIPOD_DEBUG_SERIAL.print(delta / 1000.0, 3);
       // WIIPOD_DEBUG_SERIAL.println(F("s"));
     #endif
@@ -114,15 +100,7 @@ void loop(void) {
   unsigned long now = millis();
   errlev = wiipod->update();
   unsigned long delta = millis() - now;
-  #ifdef WIIPOD_DEBUG_SERIAL
-    WIIPOD_DEBUG_SERIAL.print(F("[WIIPOD | I2CIP "));
-    WIIPOD_DEBUG_SERIAL.print(cycle.get().toString());
-    WIIPOD_DEBUG_SERIAL.print(F(" | "));
-    WIIPOD_DEBUG_SERIAL.print(1000.0 / delta, 0);
-    WIIPOD_DEBUG_SERIAL.print(F(" FPS | 0x"));
-    WIIPOD_DEBUG_SERIAL.print(errlev, HEX);
-    WIIPOD_DEBUG_SERIAL.println(F("]"));
-  #endif
+  fps += 1000.0 / delta; fps /= 2.0; // rolling average
 
   // delay(1000 / 30); // 30 FPS
 }

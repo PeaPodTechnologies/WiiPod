@@ -15,9 +15,14 @@
 #endif
 #endif
 
+#include <DebugJson.h>
+
 // CROSS-LIBRARY DEBUG COMPATIBILITY
 // #ifdef DEBUG_SERIAL
-#define WIIPOD_DEBUG_SERIAL Serial
+#define WIIPOD_DEBUG_SERIAL DebugJsonOut
+#define WIIPOD_WARNING_SERIAL DebugJsonWarning
+#define WIIPOD_ERROR_SERIAL DebugJsonError
+// #define WIIPOD_DEBUG_SERIAL Serial
 // #endif
 
 // DEBUG DELAY MACRO FOR SERIAL OUTPUT STABILITY (OPTIONAL)
@@ -41,4 +46,4 @@
 #endif
 
 #include "../lib/I2CIP/src/debug.h"
-// #include <../FiniteStateMachine/debug.h>
+#include "../lib/FiniteStateMachine/src/debug.h"

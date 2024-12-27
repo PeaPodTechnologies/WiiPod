@@ -21,18 +21,22 @@ class WiiPod;
 
 // #define WIIPOD_BUS_NUNCHUCK 0
 #define WIIPOD_BUS_SHT45  0
-#define WIIPOD_BUS_K30 1
+// #define WIIPOD_BUS_K30 1
 // #define WIIPOD_BUS_MCP 0
-#define WIIPOD_BUS_ROTARY 0
+// #define WIIPOD_BUS_ROTARY 0
 // #define WIIPOD_BUS_SCREEN 1
-#define WIIPOD_BUS_ADS 0
+// #define WIIPOD_BUS_ADS 0
 // #define WIIPOD_BUS_PCA 1
-#define WIIPOD_BUS_LCD 1 // I2CIP_MUX_BUS_FAKE
+// #define WIIPOD_BUS_LCD 1 // I2CIP_MUX_BUS_FAKE
 
 #define WIIPOD_RENDER_X  64
 #define WIIPOD_RENDER_Y  36
 
 #define WIIPOD_SERIAL_BAUD 115200
+
+#ifndef WIIPOD_DEBUG_SERIAL
+#define WIIPOD_DEBUG_SERIAL Serial
+#endif
 
 class WiiPod : private I2CIP::Module {
   private:
@@ -66,6 +70,8 @@ class WiiPod : private I2CIP::Module {
     bool initialize(); // Does Discover
     i2cip_errorlevel_t check();
     i2cip_errorlevel_t update();
+    template <class C, typename std::enable_if<std::is_base_of<Device, C>::value, int>::type = 0> i2cip_errorlevel_t update(i2cip_fqa_t fqa, bool update = false, i2cip_args_io_t args = _i2cip_args_io_default, Stream& out = WIIPOD_DEBUG_SERIAL) { return this->operator()<C>(fqa, update, args, out); }
+    template <class C, typename std::enable_if<std::is_base_of<Device, C>::value, int>::type = 0> i2cip_errorlevel_t update(uint8_t bus, uint8_t address, bool update = false, i2cip_args_io_t args = _i2cip_args_io_default, Stream& out = WIIPOD_DEBUG_SERIAL) { return this->update<C>(createFQA(bus, address), update, args, out); }
 
     // i2cip_errorlevel_t updateSHT31(uint8_t bus, bool update = false);
     // i2cip_errorlevel_t updateSHT45(uint8_t bus, bool update = false);
@@ -103,10 +109,10 @@ class WiiPod : private I2CIP::Module {
     // i2cip_errorlevel_t renderNunchuck() { return (nunchuck == nullptr || screen == nullptr) ? I2CIP::I2CIP_ERR_HARD : nunchuck->printToScreen(screen, I2CIP_SSD1306_WIDTH, I2CIP_SSD1306_HEIGHT); }
     // i2cip_errorlevel_t renderRotary() { return (seesaw == nullptr || screen == nullptr) ? I2CIP::I2CIP_ERR_HARD : seesaw->printToScreen(screen, I2CIP_SSD1306_WIDTH, I2CIP_SSD1306_HEIGHT); }
 
-    #ifdef DEBUG_SERIAL
-    void scanToPrint(Stream& out = DEBUG_SERIAL);
+    #ifdef WIIPOD_DEBUG_SERIAL
+    void scanToPrint(Print& out = WIIPOD_DEBUG_SERIAL);
     #else
-    void scanToPrint(Stream& out);
+    void scanToPrint(Print& out);
     #endif
 };
 

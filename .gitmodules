@@ -31,3 +31,6 @@
 [submodule "lib/I2CIP-JHD1313"]
 	path = lib/I2CIP-JHD1313
 	url = https://github.com/PeaPodTechnologies/I2CIP-JHD1313
+[submodule "lib/DebugJson"]
+	path = lib/DebugJson
+	url = https://github.com/PeaPodTechnologies/DebugJson

@@ -16,6 +16,7 @@
 #include <chrono.h>
 #include <I2CIP.h>
 #include <wiipod.h>
+#include <HT16K33.h>
 
 // #include <avr/wdt.h>
 
@@ -37,17 +38,12 @@ Variable cycle(Number(0, false, false), "Cycle");
 void logCycle(bool _, const Number& cycle);
 
 WiiPod* wiipod = nullptr;
+HT16K33 *ht16k33 = nullptr;
+i2cip_fqa_t fqa_sht45 = I2CIP::createFQA(WIRENUM, MODULE, 0, I2CIP_SHT45_ADDRESS);
+i2cip_fqa_t fqa_pca9685 = I2CIP::createFQA(WIRENUM, MODULE, 1, I2CIP_PCA9685_ADDRESS);
+i2cip_fqa_t fqa_pca9632 = I2CIP::createFQA(WIRENUM, MODULE, 1, I2CIP_PCA9632_ADDRESS);
 
 // HELPERS
-
-void crashout(void) {
-  while(true) { // Blink
-    digitalWrite(LED_BUILTIN, HIGH);
-    delay(100);
-    digitalWrite(LED_BUILTIN, LOW);
-    delay(100);
-  }
-}
 
 // int freeRam() {
 //   extern int __heap_start,*__brkval;
@@ -66,9 +62,9 @@ void logCycle(bool _, const Number& cycle) {
   #endif
   lastCycle = millis();
 
-  String m = _F("==== [ Cycle: ");
+  String m = _F("[ WIIPOD ");
   m += cycle.toString();
-  m += _F(" @ ");
+  m += _F(" | ");
   m += timestampToString(millis());
   // if(delta < FSM_CYCLE_DELTA_MS) { 
     m += " | ";
@@ -78,44 +74,86 @@ void logCycle(bool _, const Number& cycle) {
   // }
   // m += " | SRAM: ";
   // m += freeRam();
-  m += _F(" ] ====");
+  m += _F(" ]");
 
-  Serial.println(m);
+  WIIPOD_DEBUG_SERIAL.println(m);
 }
 
-// MAIN
+void crashout(void) {
+  while(true) { // Blink
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(100);
+    digitalWrite(LED_BUILTIN, LOW);
+    delay(100);
+  }
+}
 
 void setup(void) {
   Serial.begin(115200);
-  while(!Serial) { ; }
   cycle.addLoggerCallback(logCycle);
+
+  // Module
+  wiipod = new WiiPod(WIRENUM, MODULE);
+  i2cip_errorlevel_t errlev = wiipod->check(); // Discover, Ping
+  if(errlev != I2CIP_ERR_NONE) crashout();
+
+  // Status Display
+  ht16k33 = new HT16K33(WIRENUM, I2CIP_MUX_NUM_FAKE, I2CIP_MUX_BUS_FAKE, "SEVENSEG");
+  errlev = wiipod->operator()<HT16K33>(ht16k33, false, _i2cip_args_io_default, DebugJsonBreakpoints);
+  if(errlev != I2CIP_ERR_NONE) crashout();
 }
 
 i2cip_errorlevel_t errlev;
 double fps = 0.0;
-bool flash = false;
 void loop(void) {
 
-  // FIXED UPDATE
+  // 0. Clock, Cycle, Delay
+  unsigned long now = millis(); Chronos.set(now); cycle.set(cycle.get()++);
 
-  // 1. Clock, Cycle, Delay
-  Chronos.set(millis()); cycle.set(cycle.get() + Number(1, false, false));
+  // 1. Update WiiPod: SHT45 -> Temperature Cache -> 7-Seg, PWM, LCD
+  // errlev = wiipod->update();
+  errlev = wiipod->operator()<SHT45>(fqa_sht45, true, _i2cip_args_io_default, DebugJsonBreakpoints);
 
-  // 2. I/O and OOP
-  if(wiipod == nullptr) { 
-    #ifdef WIIPOD_DEBUG_SERIAL
-      WIIPOD_DEBUG_SERIAL.println(F("[WIIPOD | SETUP]"));
-      // WIIPOD_DEBUG_SERIAL.print(delta / 1000.0, 3);
-      // WIIPOD_DEBUG_SERIAL.println(F("s"));
-    #endif
-    wiipod = new WiiPod(WIRENUM, MODULE); return;
+  if(errlev != I2CIP_ERR_NONE) {
+    // FAIL
+    errlev = wiipod->operator()<HT16K33>(ht16k33, true, _i2cip_args_io_default, DebugJsonBreakpoints);
+  } else {
+    // DISPLAY TEMPERATURE AND DO PWM
+    DeviceGroup* sht45 = wiipod->getDeviceGroup("SHT45");
+    if(sht45 != nullptr && sht45->numdevices > 0) {
+      // AVERAGES
+      state_sht45_t state = {0.0f, 0.0f};
+      for(uint8_t i = 0; i < sht45->numdevices; i++) {
+        state.temperature += ((SHT45*)(sht45->devices[i]))->getCache().temperature;
+        state.humidity += ((SHT45*)(sht45->devices[i]))->getCache().humidity;
+      }
+      state.temperature /= sht45->numdevices; state.humidity /= sht45->numdevices;
+
+      // SEVENSEG
+      i2cip_ht16k33_mode_t mode = SEG_1F;
+      // i2cip_ht16k33_data_t data = { .f = temphum ? state.temperature : state.humidity };
+      i2cip_ht16k33_data_t data = { .f = state.temperature };
+      i2cip_args_io_t hargs = { .a = nullptr, .s = &data.f, .b = &mode };
+      // errlev = 
+      errlev = wiipod->operator()<HT16K33>(ht16k33, true, hargs, DebugJsonBreakpoints);
+      // temphum = !temphum;
+
+      // PWM
+      uint16_t pwm12 = (uint16_t)(0xFFF * max(0.f, state.temperature) / 100.f); // Celsius to PWM
+      i2cip_pca9685_chsel_t c = PCA9685_CH0;
+      i2cip_args_io_t pargs = { .a = nullptr, .s = &pwm12, .b = &c };
+      errlev = modules[MODULE]->operator()<PCA9685>(fqa_pca9685, true, pargs, DebugJsonBreakpoints);
+
+      // LCD
+      String msg = "HI PEAPOD :D\nT: " + String(state.temperature, 1) + "C PWM: " + String((pwm12 / (float)0xFFF) * 100, 1) + "%";
+      i2cip_args_io_t largs = { .a = nullptr, .s = &msg, .b = nullptr };
+      errlev = modules[MODULE]->operator()<PCA9632>(fqa_pca9632, true, largs, DebugJsonBreakpoints);
+    }
   }
 
-  unsigned long now = millis();
-  errlev = wiipod->update();
   unsigned long delta = millis() - now;
   #ifdef WIIPOD_DEBUG_SERIAL
-    WIIPOD_DEBUG_SERIAL.print(F("[WIIPOD | I2CIP "));
+    WIIPOD_DEBUG_SERIAL.print(F("[ WIIPOD "));
     WIIPOD_DEBUG_SERIAL.print(cycle.get().toString());
     WIIPOD_DEBUG_SERIAL.print(F(" | "));
     WIIPOD_DEBUG_SERIAL.print(1000.0 / delta, 0);

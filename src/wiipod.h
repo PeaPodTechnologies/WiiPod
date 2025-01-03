@@ -21,12 +21,12 @@ class WiiPod;
 
 // #define WIIPOD_BUS_NUNCHUCK 0
 #define WIIPOD_BUS_SHT45  0
-#define WIIPOD_BUS_K30 1
+// #define WIIPOD_BUS_K30 1
 // #define WIIPOD_BUS_MCP 0
 #define WIIPOD_BUS_ROTARY 0
 // #define WIIPOD_BUS_SCREEN 1
-#define WIIPOD_BUS_ADS 0
-// #define WIIPOD_BUS_PCA 1
+// #define WIIPOD_BUS_ADS 0
+#define WIIPOD_BUS_PCA 1
 #define WIIPOD_BUS_LCD 1 // I2CIP_MUX_BUS_FAKE
 
 #define WIIPOD_RENDER_X  64
@@ -34,7 +34,8 @@ class WiiPod;
 
 #define WIIPOD_SERIAL_BAUD 115200
 
-class WiiPod : private I2CIP::Module {
+// initialize, check, update
+class WiiPod : public I2CIP::Module {
   private:
     bool initialized = false; // MUX last ping success?
 
